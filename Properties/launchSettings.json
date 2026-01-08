@@ -1,0 +1,14 @@
+{
+  "profiles": {
+    "RTCPilot Debug": {
+      "commandName": "Executable",
+      "commandLineArgs": "--config config.yaml --log-level debug",
+      "workingDirectory": "$(ProjectDir)"
+    },
+    "RTCPilot Release": {
+      "commandName": "Executable",
+      "commandLineArgs": "--config config.yaml",
+      "workingDirectory": "$(ProjectDir)"
+    }
+  }
+}

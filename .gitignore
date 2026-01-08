@@ -545,7 +545,7 @@ ui_*.h
 # -------------- IDE / 编辑器 --------------
 # Visual Studio
 .vs/
-*.vcxproj.user
+# *.vcxproj.user
 *.sln.docstates
 *.aps
 *.ncb

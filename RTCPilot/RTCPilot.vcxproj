@@ -304,6 +304,7 @@
     <ClInclude Include="..\src\ws_stream\ws_stream_server.hpp" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="..\.gitignore" />
     <None Include="config.yaml" />
     <None Include="config1.yaml" />
   </ItemGroup>
