@@ -92,6 +92,10 @@ int main(int argc, char* argv[]) {
         return -1;
     }
     std::unique_ptr<PilotMessageClient> pilot_client;
+    std::unique_ptr<RtmpServer> rtmp_server;
+    std::unique_ptr<HttpFlvServer> httpflv_server;
+    std::unique_ptr<WsStreamServer> ws_stream_server;
+
     PilotCenterConfig& pilot_cfg =  Config::Instance().pilot_center_cfg_;
     if (pilot_cfg.enable_ && !pilot_cfg.host_.empty() && pilot_cfg.port_ != 0 && !pilot_cfg.subpath_.empty()) {
         pilot_client.reset(new PilotMessageClient(pilot_cfg, loop, logger.get()));
@@ -101,7 +105,7 @@ int main(int argc, char* argv[]) {
     }
     // Create and run the RTMP server
     if (Config::Instance().rtmp_cfg_.enable_) {
-        RtmpServer rtmp_server(loop, Config::Instance().rtmp_cfg_.listen_ip_, Config::Instance().rtmp_cfg_.port_, logger.get());
+        rtmp_server.reset(new RtmpServer(loop, Config::Instance().rtmp_cfg_.listen_ip_, Config::Instance().rtmp_cfg_.port_, logger.get()));
         LogInfof(logger.get(), "Starting RTMP server on %s:%d", 
             Config::Instance().rtmp_cfg_.listen_ip_.c_str(), 
             Config::Instance().rtmp_cfg_.port_);
@@ -111,7 +115,7 @@ int main(int argc, char* argv[]) {
 
     // Create and run the HTTP-FLV server
     if (Config::Instance().httpflv_cfg_.enable_) {
-        HttpFlvServer httpflv_server(loop, Config::Instance().httpflv_cfg_.listen_ip_, Config::Instance().httpflv_cfg_.port_, logger.get());
+        httpflv_server.reset(new HttpFlvServer(loop, Config::Instance().httpflv_cfg_.listen_ip_, Config::Instance().httpflv_cfg_.port_, logger.get()));
         LogInfof(logger.get(), "Starting httpflv server on %s:%d", 
             Config::Instance().httpflv_cfg_.listen_ip_.c_str(), 
             Config::Instance().httpflv_cfg_.port_);
@@ -121,10 +125,10 @@ int main(int argc, char* argv[]) {
 
     // Create and run the WebSocket stream server
     if (Config::Instance().ws_stream_cfg_.enable_) {
-        WsStreamServer ws_stream_server(Config::Instance().ws_stream_cfg_.listen_ip_, 
+        ws_stream_server.reset(new WsStreamServer(Config::Instance().ws_stream_cfg_.listen_ip_,
             Config::Instance().ws_stream_cfg_.port_, 
             loop, 
-            logger.get());
+            logger.get()));
         LogInfof(logger.get(), "Starting ws_stream(flv) server on %s:%d", 
             Config::Instance().ws_stream_cfg_.listen_ip_.c_str(), 
             Config::Instance().ws_stream_cfg_.port_);
