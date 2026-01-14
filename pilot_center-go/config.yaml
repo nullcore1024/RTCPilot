@@ -1,0 +1,10 @@
+websocket:
+  listen_ip: "0.0.0.0"
+  listen_port: 8080
+  cert_path: ""
+  key_path: ""
+  subpath: "/pilot/center"
+  read_buffer_size: 2048
+  write_buffer_size: 2048
+  read_timeout: 30
+  write_timeout: 30
