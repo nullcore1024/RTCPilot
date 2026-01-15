@@ -285,6 +285,20 @@ endif()
 # Keep this target light-weight: only the test source is compiled
 add_executable(ws_protoo_client_test
     ${PROJECT_SOURCE_DIR}/tests/ws_protoo_client_test.cpp
+    ${PROJECT_SOURCE_DIR}/src/ws_message/ws_protoo_client.cpp
+    ${PROJECT_SOURCE_DIR}/src/ws_message/ws_message_session.cpp
+    ${PROJECT_SOURCE_DIR}/src/net/http/websocket/websocket_client.cpp
+    ${PROJECT_SOURCE_DIR}/src/net/http/websocket/websocket_frame.cpp
+    ${PROJECT_SOURCE_DIR}/src/net/http/websocket/ws_session_base.cpp
+    ${PROJECT_SOURCE_DIR}/src/net/http/websocket/websocket_pub.cpp
+    ${PROJECT_SOURCE_DIR}/src/net/http/websocket/websocket_session.cpp
+    ${PROJECT_SOURCE_DIR}/src/net/http/websocket/websocket_server.cpp
+    ${PROJECT_SOURCE_DIR}/src/net/http/http_client.cpp
+    ${PROJECT_SOURCE_DIR}/src/net/http/http_session.cpp
+    ${PROJECT_SOURCE_DIR}/src/utils/timer.cpp
+    ${PROJECT_SOURCE_DIR}/src/utils/timeex.cpp
+    ${PROJECT_SOURCE_DIR}/src/utils/byte_crypto.cpp
+    ${PROJECT_SOURCE_DIR}/src/utils/base64.cpp
 )
 add_dependencies(ws_protoo_client_test uv)
 

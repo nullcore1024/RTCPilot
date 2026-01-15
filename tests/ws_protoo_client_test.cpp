@@ -4,6 +4,7 @@
 #include <cassert>
 #include <uv.h>
 #include <iostream>
+#include <filesystem>
 
 #include "net/http/websocket/websocket_server.hpp"
 #include "net/http/websocket/websocket_session.hpp"
@@ -117,13 +118,21 @@ int main() {
 
     const uint16_t port = 9002;
 
+    const std::filesystem::path cert_path = std::filesystem::path(__FILE__).parent_path() / ".." / "RTCPilot" / "certificate.crt";
+    const std::filesystem::path key_path  = std::filesystem::path(__FILE__).parent_path() / ".." / "RTCPilot" / "private.key";
+
+    if (!std::filesystem::exists(cert_path) || !std::filesystem::exists(key_path)) {
+        std::cerr << "TLS files not found: cert=" << cert_path << " key=" << key_path << std::endl;
+        return 1;
+    }
+
     // start server
-    WebSocketServer server("127.0.0.1", port, loop, &logger);
+    WebSocketServer server("127.0.0.1", port, loop, key_path.string(), cert_path.string(), &logger);
     server.AddHandle("/webrtc", OnTestWSHandle);
 
     // create client
     TestClientCb* cb = new TestClientCb(loop);
-    WsProtooClient* client = new WsProtooClient(loop, "127.0.0.1", port, "/webrtc", false, &logger, cb);
+    WsProtooClient* client = new WsProtooClient(loop, "127.0.0.1", port, "/webrtc", true, &logger, cb);
     cb->client = client;
 
     // connect and run
