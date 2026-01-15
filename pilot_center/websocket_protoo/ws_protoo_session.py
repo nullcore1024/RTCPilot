@@ -315,7 +315,7 @@ class WsProtooSession:
             self.log.debug("Invalid notification method from %s: %r", self.peer, method)
             return
         # Log notification
-        self.log.info("Client notification from %s: %s", self.peer, method)
+        self.log.info("Client notification from %s method:%s, data:%s", self.peer, method, data)
         if method == "push":
             # call room manager to handle push notification
             rm = getattr(self.server, "room_manager", None)
@@ -337,6 +337,10 @@ class WsProtooSession:
             rm = getattr(self.server, "room_manager", None)
             if rm is not None:
                 rm.handle_textMessage_notification(data, self)
+        elif method == "asrResult":
+            rm = getattr(self.server, "room_manager", None)
+            if rm is not None:
+                rm.handle_asr_result_notification(data, self)
         else:
             self.log.error("Unhandled notification method from %s: %s", self.peer, method)
     async def _send_json(self, obj: Dict[str, Any]) -> None:

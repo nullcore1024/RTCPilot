@@ -106,6 +106,17 @@ class RoomManager:
 			# Forward the notification to the room
 			room.handle_textMessage_notification(data, session)
 			return True
+	def handle_asr_result_notification(self, data: dict, session: object) -> bool:
+		"""Handle an ASR result notification from a user session."""
+		with self._lock:
+			# get roomId from data
+			room_id = data.get("roomId")
+			if not room_id:
+				return False
+			room = self.get_or_create_room(room_id)
+			# Forward the notification to the room
+			room.handle_asr_result_notification(data, session)
+			return True
 	
 	def get_or_create_room(self, room_id: str) -> Room:
 		"""Return the Room for `room_id`, creating it if missing.

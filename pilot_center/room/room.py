@@ -116,7 +116,7 @@ class Room:
 
 		return data
 
-	def broadcast(self, message: str) -> None:
+	def broadcast(self, method: str, payload: Optional[Dict] = None) -> None:
 		"""Stub: broadcast a message to all users in the room.
 
 		In this pilot_center prototype we don't have a real messaging channel
@@ -128,7 +128,7 @@ class Room:
 			try:
 				# session should implement async send_notification; schedule fire-and-forget
 				import asyncio as _asyncio
-				_asyncio.create_task(sess.send_notification("room.broadcast", {"message": message}))
+				_asyncio.create_task(sess.send_notification(method, payload))
 			except Exception:
 				# ignore individual session failures
 				pass
@@ -333,33 +333,37 @@ class Room:
 		self.log.info("Sending pullRemoteStream notification to pusher user %s in room %s, data:%s", pusher_user_id, self.room_id, data_str)
 		_asyncio.create_task(session.send_notification("pullRemoteStream", data))
 
-# {
-#     "roomId": "xxdd",
-#     "pusher_user_id": "123456",
-#     "udp_ip": "192.168.1.4",
-#     "udp_port": 10001,
-#     "mediaType": "video",
-#     "pushInfo": {
-#         "pusherId": "7d4d8eed-2445-8fb0-046c-bb6c631a2199",
-#         "rtpParam": 
-#             {
-#                 "av_type": "video",
-#                 "codec": "H264",
-#                 "fmtp_param": "profile-level-id=42e01f;level-asymmetry-allowed=1;packetization-mode=1;",
-#                 "rtcp_features": [
-#                     "nack",
-#                     "pli"
-#                 ],
-#                 "channel": 2,
-#                 "ssrc": 12345678,
-#                 "payload_type": 96,
-#                 "clock_rate": 90000,
-#                 "rtx_ssrc": 87654321,
-#                 "rtx_payload_type": 97,
-#                 "use_nack": true,
-#                 "key_request": true,
-#                 "mid_ext_id": 1,
-#                 "tcc_ext_id": 3
-#             }
-#     }
-# }
+	def handle_asr_result_notification(self, data: Dict[str, object], session: object) -> None:
+		"""Handle an asr_result notification sent to this room.
+
+		Broadcasts the asr result to all room members.
+		"""
+
+		"""
+		{
+		    "type": "asr_result",
+		    "result": "I am a test ASR result",
+		    "start_ms": "17000000",
+		    "end_ms": "17111111",
+		    "index": 1,
+		    "ts": "1712344444",
+		    "roomId": "abcde",
+		    "userId": "eeeee",
+		    "userName": "eeeee_username"
+		}
+		handle the asr_result notification sent to this room.
+		"""
+		user_id = data.get("userId", "")
+		user_name = data.get("userName", "")
+		asr_result = data.get("result", "")
+
+		asr_str = user_name + ": " + asr_result
+
+		self.log.info("Handling asr_result notification from user %s(%s) in room %s: %s", user_id, user_name, self.room_id, asr_result)
+		# broadcast the asr result to all room members
+		self.broadcast(method="textMessage", payload={
+			"roomId": self.room_id,
+			"userId": 'ai_asr_bot',
+			"userName": 'AI_ASR_Bot',
+			"message": asr_str,
+		})
