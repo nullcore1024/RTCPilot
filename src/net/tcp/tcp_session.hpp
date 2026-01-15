@@ -251,7 +251,6 @@ private:
                 return;
             }
             ssl_->HandleSslDataRecv((uint8_t*)buf->base, nread);
-            AsyncRead();
             return;
         }
 

@@ -102,23 +102,23 @@ public:
             return 0;
         }
         
-        int r0 = BIO_write(bio_in_, data, len);
+        int r0 = BIO_write(bio_in_, data, (int)len);
         if (r0 <= 0) {
             LogErrorf(logger_, "BIO_write error:%d", r0);
             return -1;
         }
         
         //while(true) {
-            r0 = SSL_read(ssl_, plaintext_data_, plaintext_data_len_);
+            r0 = SSL_read(ssl_, plaintext_data_, (int)plaintext_data_len_);
             int r1 = SSL_get_error(ssl_, r0);
-            int r2 = BIO_ctrl_pending(bio_in_);
+            size_t r2 = BIO_ctrl_pending(bio_in_);
             int r3 = SSL_is_init_finished(ssl_);
 
             // OK, got data.
             if (r0 > 0) {
                 cb_->PlaintextDataRecv((char*)plaintext_data_, r0);
             } else {
-                LogErrorf(logger_, "SSL_read error, r0:%d, r1:%d, r2:%d, r3:%d",
+                LogErrorf(logger_, "SSL_read error, r0:%d, r1:%d, r2:%zu, r3:%d",
                         r0, r1, r2, r3);
                 //break;
             }
