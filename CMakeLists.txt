@@ -222,6 +222,8 @@ add_executable(RTCPilot
             ${PROJECT_SOURCE_DIR}/src/utils/timer.hpp
             ${PROJECT_SOURCE_DIR}/src/utils/timer.cpp
             ${PROJECT_SOURCE_DIR}/src/utils/uuid.hpp
+            ${PROJECT_SOURCE_DIR}/src/utils/event_log.hpp
+            ${PROJECT_SOURCE_DIR}/src/utils/event_log.cpp
             ${PROJECT_SOURCE_DIR}/src/config/config.hpp
             ${PROJECT_SOURCE_DIR}/src/config/config.cpp
             ${PROJECT_SOURCE_DIR}/src/cpp_streamer_interface.hpp

@@ -3,10 +3,13 @@
 #include "config/config.hpp"
 #include "utils/timeex.hpp"
 #include "utils/byte_crypto.hpp"
+#include "utils/event_log.hpp"
 #include "net/rtprtcp/rtprtcp_pub.hpp"
 #include "net/rtprtcp/rtcp_pspli.hpp"
 #include "net/rtprtcp/rtcp_rr.hpp"
 #include "config/config.hpp"
+
+extern std::unique_ptr<cpp_streamer::EventLog> g_rtc_stream_log;
 
 namespace cpp_streamer {
 RtcSendRelay::RtcSendRelay(const std::string& room_id, 
@@ -110,7 +113,33 @@ bool RtcSendRelay::OnTimer() {
     int64_t now_ms = now_millisec();
     for (auto& it : ssrc2send_session_) {
         it.second->OnTimer(now_ms);
+        if (last_statics_ms_ < 0) {
+            last_statics_ms_ = now_ms;
+        }
+        if (now_ms - last_statics_ms_ > 5000) {
+            last_statics_ms_ = now_ms;
+            if (g_rtc_stream_log) {
+                StreamStatics& stats = it.second->GetSendStatics();
+                const auto rtp_params = it.second->GetRtpSessionParam();
+                size_t pps = 0;
+                size_t bps = stats.BytesPerSecond(now_millisec(), pps);
+                size_t kbps = bps * 8 / 1000;
+                json evt_json;
+                evt_json["event"] = "relay_send";
+                evt_json["room_id"] = room_id_;
+                evt_json["pusher_user_id"] = pusher_user_id_;
+                evt_json["ssrc"] = it.first;
+                evt_json["av_type"] = avtype_tostring(rtp_params.av_type_);
+                evt_json["bytes_sent"] = stats.GetBytes();
+                evt_json["packets_sent"] = stats.GetCount();
+                evt_json["kbps"] = kbps;
+                evt_json["pps"] = pps;
+
+                g_rtc_stream_log->Log("relay_send", evt_json);
+            }
+        }
     }
+
     return timer_running_;
 }
 

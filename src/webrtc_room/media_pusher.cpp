@@ -1,7 +1,10 @@
 #include "media_pusher.hpp"
 #include "utils/uuid.hpp"
+#include "utils/event_log.hpp"
 #include "net/rtprtcp/rtcp_pspli.hpp"
 #include <assert.h>
+
+extern std::unique_ptr<cpp_streamer::EventLog> g_rtc_stream_log;
 
 namespace cpp_streamer {
 
@@ -139,11 +142,25 @@ void MediaPusher::OnTimer(int64_t now_ms) {
             StreamStatics& stats = it.second->GetRecvStatics();
             size_t pps = 0;
             size_t bps = stats.BytesPerSecond(now_ms, pps);
-            LogInfof(logger_, "++++>media pusher RecvStatics, room_id:%s, user_id:%s, \
+            size_t kbps = bps * 8 / 1000;
+            LogDebugf(logger_, "++++>media pusher RecvStatics, room_id:%s, user_id:%s, \
 session_id:%s, pusher_id:%s, ssrc:%u, media_type:%s, recv_kbits:%zu, recv_pkt_count:%zu",
                 room_id_.c_str(), user_id_.c_str(), session_id_.c_str(), pusher_id_.c_str(),
                 it.first, avtype_tostring(media_type_).c_str(),
-                bps*8 / 1000, pps);
+                kbps, pps);
+            //log to event log
+            if (g_rtc_stream_log) {
+                json evt_data;
+                evt_data["room_id"] = room_id_;
+                evt_data["user_id"] = user_id_;
+                evt_data["session_id"] = session_id_;
+                evt_data["pusher_id"] = pusher_id_;
+                evt_data["ssrc"] = it.first;
+                evt_data["media_type"] = avtype_tostring(media_type_);
+                evt_data["recv_bps"] = kbps;
+                evt_data["recv_pps"] = pps;
+                g_rtc_stream_log->Log("pusher_recv", evt_data);
+            }
         }
     }
  

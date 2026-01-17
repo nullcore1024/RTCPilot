@@ -17,6 +17,7 @@
 #include "utils/av/media_stream_manager.hpp"
 #include "utils/timeex.hpp"
 #include "utils/byte_crypto.hpp"
+#include "utils/event_log.hpp"
 
 #include <thread>
 #include <vector>
@@ -26,6 +27,9 @@
 #endif
 
 using namespace cpp_streamer;
+
+std::unique_ptr<EventLog> g_rtc_event_log;
+std::unique_ptr<EventLog> g_rtc_stream_log;
 
 enum LOGGER_LEVEL GetLogLevelFromString(const std::string& level_str) {
     if (level_str == "debug") {
@@ -73,6 +77,9 @@ int main(int argc, char* argv[]) {
     LogInfof(logger.get(), "Loaded config:\n%s", Config::Instance().Dump().c_str());
     MediaStreamManager::SetLogger(logger.get());
 
+    g_rtc_event_log.reset(new EventLog(Config::Instance().event_log_cfg_.rtc_log_path_));
+    g_rtc_stream_log.reset(new EventLog(Config::Instance().event_log_cfg_.rtc_stream_log_path_));
+    
     try {
         int ret = DtlsSession::Init(Config::Instance().cert_path_, Config::Instance().key_path_);
         if (ret != 0) {

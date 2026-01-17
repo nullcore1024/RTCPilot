@@ -169,6 +169,7 @@
     <ClCompile Include="..\src\utils\base64.cpp" />
     <ClCompile Include="..\src\utils\byte_crypto.cpp" />
     <ClCompile Include="..\src\utils\crc.cpp" />
+    <ClCompile Include="..\src\utils\event_log.cpp" />
     <ClCompile Include="..\src\utils\timeex.cpp" />
     <ClCompile Include="..\src\utils\timer.cpp" />
     <ClCompile Include="..\src\webrtc_room\dtls_session.cpp" />
@@ -266,6 +267,7 @@
     <ClInclude Include="..\src\utils\co_pub.hpp" />
     <ClInclude Include="..\src\utils\crc.hpp" />
     <ClInclude Include="..\src\utils\data_buffer.hpp" />
+    <ClInclude Include="..\src\utils\event_log.hpp" />
     <ClInclude Include="..\src\utils\io_interface.hpp" />
     <ClInclude Include="..\src\utils\ipaddress.hpp" />
     <ClInclude Include="..\src\utils\json.hpp" />

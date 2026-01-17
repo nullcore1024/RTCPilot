@@ -212,8 +212,7 @@ public:
     ~PullRequestInfo() = default;
 
 public:
-    std::string Dump() const {
-        json ret_json = json::object();
+    void Dump(json& ret_json) const {
         ret_json["target_user_id"] = target_user_id_;
         ret_json["src_user_id"] = src_user_id_;
         ret_json["room_id"] = room_id_;
@@ -231,6 +230,10 @@ public:
             pushers_json.push_back(pusher_json);
         }
         ret_json["pushers"] = pushers_json;
+    }
+    std::string Dump() const {
+        json ret_json = json::object();
+        Dump(ret_json);
         return ret_json.dump();
     }
 public:

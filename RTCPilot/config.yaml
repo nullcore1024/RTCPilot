@@ -4,6 +4,10 @@ log:
   # log path
   log_path: "server0.log"
 
+event_log:
+  rtc_log_path: "rtc_event0.log"
+  rtc_stream_log_path: "rtc_stream0.log"
+
 #websocket server
 websocket_server:
   ssl_enable: false
@@ -49,7 +53,7 @@ downlink_discard_percent: 0
 uplink_discard_percent: 0
 
 pilot_center:
-  enable: false
+  enable: true
   host: "192.168.1.86"
   port: 9443
   subpath: "/pilot/center"

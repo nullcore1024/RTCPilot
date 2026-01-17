@@ -32,7 +32,15 @@ int Config::LoadConfig(const std::string& config_file) {
                 log_console_ = log_cfg["log_console"].as<bool>();
             }
         }
-
+        if (config["event_log"]) {
+            auto event_log_cfg = config["event_log"];
+            if (event_log_cfg["rtc_log_path"]) {
+                event_log_cfg_.rtc_log_path_ = event_log_cfg["rtc_log_path"].as<std::string>();
+            }
+            if (event_log_cfg["rtc_stream_log_path"]) {
+                event_log_cfg_.rtc_stream_log_path_ = event_log_cfg["rtc_stream_log_path"].as<std::string>();
+            }
+        }
         if (config["websocket_server"]) {
             auto ws_cfg = config["websocket_server"];
             if (ws_cfg["listen_ip"]) {
@@ -174,6 +182,10 @@ std::string Config::Dump() {
     dump_str += "log_path: " + log_path_ + "\n";
     dump_str += "log_level: " + log_level_ + "\n";
     dump_str += "log_console: " + std::string(log_console_ ? "true" : "false") + "\n";
+    
+    dump_str += "event_log:\n";
+    dump_str += "  rtc_log_path: " + event_log_cfg_.rtc_log_path_ + "\n";
+    dump_str += "  rtc_stream_log_path: " + event_log_cfg_.rtc_stream_log_path_ + "\n";
     
     // WebSocket signaling server configuration
     dump_str += "websocket_signal_server:\n";

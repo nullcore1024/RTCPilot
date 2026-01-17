@@ -4,6 +4,10 @@ log:
   # log path
   log_path: "server1.log"
 
+event_log:
+  rtc_log_path: "rtc_event1.log"
+  rtc_stream_log_path: "rtc_stream1.log"
+
 #websocket server
 websocket_server:
   # wss enable only when you have valid certificate and key files

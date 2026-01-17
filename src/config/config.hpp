@@ -102,6 +102,18 @@ public:
     std::string listen_ip_ = "0.0.0.0";
     uint16_t    port_ = 8443;
 };
+
+class EventLogConfig
+{
+public:
+    EventLogConfig() = default;
+    ~EventLogConfig() = default;
+
+public:
+    std::string rtc_log_path_;
+    std::string rtc_stream_log_path_;
+};
+
 class Config
 {
 public:
@@ -114,6 +126,9 @@ public:
     std::string log_path_;
     std::string log_level_;
     bool        log_console_ = false;
+    
+public:
+    EventLogConfig event_log_cfg_;
     
 public:
     WSSignalConfig ws_signal_cfg_;

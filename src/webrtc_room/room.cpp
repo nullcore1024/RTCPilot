@@ -7,9 +7,12 @@
 #include "format/rtc_sdp/rtc_sdp.hpp"
 #include "format/rtc_sdp/rtc_sdp_filter.hpp"
 #include "utils/uuid.hpp"
+#include "utils/event_log.hpp"
 #include "config/config.hpp"
 #include "rtc_recv_relay.hpp"
 #include "rtc_send_relay.hpp"
+
+extern std::unique_ptr<cpp_streamer::EventLog> g_rtc_event_log;
 
 namespace cpp_streamer {
 
@@ -164,13 +167,21 @@ int Room::UserJoin(const std::string& user_id,
         LogErrorf(logger_, "Room is closed, cannot join, room_id:%s", room_id_.c_str());
         return -1;
     }
+
     last_alive_ms_ = now_millisec();
     std::shared_ptr<RtcUser> new_user;
     auto it = users_.find(user_id);
     if (it != users_.end()) {
         LogWarnf(logger_, "User already in room, user_id:%s, room_id:%s", 
             user_id.c_str(), room_id_.c_str());
-        
+        if (g_rtc_event_log) {
+            json evt_data;
+            evt_data["event"] = "join";
+            evt_data["room_id"] = room_id_;
+            evt_data["user_id"] = user_id;
+            evt_data["reconnect"] = true;
+            g_rtc_event_log->Log("join", evt_data);
+        }
         return ReConnect(it->second, id, resp_cb);
     } else {
         LogInfof(logger_, "New user joining room, user_id:%s, room_id:%s", 
@@ -178,7 +189,14 @@ int Room::UserJoin(const std::string& user_id,
         new_user = std::make_shared<RtcUser>(room_id_, user_id, user_name, resp_cb, logger_);
         users_[user_id] = new_user;
     }
-
+    if (g_rtc_event_log) {
+        json evt_data;
+        evt_data["event"] = "join";
+        evt_data["room_id"] = room_id_;
+        evt_data["user_id"] = user_id;
+        evt_data["reconnect"] = false;
+        g_rtc_event_log->Log("join", evt_data);
+    }
     LogInfof(logger_, "User joined room, user_id:%s, user_name:%s, room_id:%s",
         user_id.c_str(), user_name.c_str(), room_id_.c_str());
 
@@ -257,6 +275,14 @@ void Room::NotifyNewUser(const std::string& user_id, const std::string& user_nam
         notify_array.push_back(user_json);
 
         LogInfof(logger_, "notify new user, data:%s", notify_array.dump().c_str());
+        if (g_rtc_event_log) {
+            json evt_data;
+            evt_data["event"] = "newUser";
+            evt_data["room_id"] = room_id_;
+            evt_data["notify_user_id"] = pair.first;
+            evt_data["new_user_id"] = user_id;
+            g_rtc_event_log->Log("newUser", evt_data);
+        }
         notify_cb->Notification("newUser", notify_array);
     }
 }
@@ -289,6 +315,15 @@ void Room::NotifyNewPusher(const std::string& pusher_user_id,
         if (notify_cb == nullptr) {
             continue;
         }
+        if (g_rtc_event_log) {
+            json evt_data;
+            evt_data["event"] = "newPusher";
+            evt_data["room_id"] = room_id_;
+            evt_data["notify_user_id"] = pair.first;
+            evt_data["pusher_user_id"] = pusher_user_id;
+            evt_data["push_info"] = pusher_json["pushers"];
+            g_rtc_event_log->Log("newPusher", evt_data);
+        }
         notify_cb->Notification("newPusher", pusher_json);
     }
 }
@@ -304,6 +339,14 @@ int Room::UserLeave(const std::string& user_id) {
 
     LogInfof(logger_, "User left room, user_id:%s, room_id:%s",
         user_id.c_str(), room_id_.c_str());
+
+    if (g_rtc_event_log) {
+        json evt_data;
+        evt_data["event"] = "userLeave";
+        evt_data["room_id"] = room_id_;
+        evt_data["user_id"] = user_id;
+        g_rtc_event_log->Log("userLeave", evt_data);
+    }
     //notify other users
     json notify_json = json::object();
     notify_json["userId"] = user_id;
@@ -339,7 +382,13 @@ int Room::DisconnectUser(const std::string& user_id) {
     it->second->SetRespCb(nullptr);
     LogInfof(logger_, "User disconnected from room, user_id:%s, room_id:%s",
         user_id.c_str(), room_id_.c_str());
-
+    if (g_rtc_event_log) {
+        json evt_data;
+        evt_data["event"] = "userDisconnect";
+        evt_data["room_id"] = room_id_;
+        evt_data["user_id"] = user_id;
+        g_rtc_event_log->Log("userDisconnect", evt_data);
+    }
     json notify_json = json::object();
     notify_json["userId"] = user_id;
     notify_json["roomId"] = room_id_;
@@ -379,7 +428,13 @@ int Room::HandlePushSdp(const std::string& user_id,
     
     LogDebugf(logger_, "HandlePushSdp, user_id:%s, room_id:%s, sdp dump:\r\n%s",
         user_id.c_str(), room_id_.c_str(), sdp_ptr->DumpSdp().c_str());
-
+    if (g_rtc_event_log) {
+        json evt_data;
+        evt_data["event"] = "pushSdp";
+        evt_data["room_id"] = room_id_;
+        evt_data["user_id"] = user_id;
+        g_rtc_event_log->Log("pushSdp", evt_data);
+    }
     auto webrtc_session_ptr = std::make_shared<WebRtcSession>(SRtpType::SRTP_SESSION_TYPE_RECV, 
         room_id_, user_id, this, this, loop_, logger_);
     webrtc_session_ptr->DtlsInit(Role::ROLE_SERVER, sdp_ptr->finger_print_);
@@ -499,6 +554,16 @@ int Room::HandleRemotePullSdp(const std::string& pusher_user_id,
         last_alive_ms_ = now_millisec();
         LogInfof(logger_, "HandleRemotePullSdp pusher_user_id:%s, called: %s", pusher_user_id.c_str(), pull_info.Dump().c_str());
         
+        if (g_rtc_event_log) {
+            json evt_data;
+            json pull_info_json = json::object();
+            pull_info.Dump(pull_info_json);
+            evt_data["event"] = "remotePullSdp";
+            evt_data["room_id"] = room_id_;
+            evt_data["pusher_user_id"] = pusher_user_id;
+            evt_data["pull_info"] = pull_info_json;
+            g_rtc_event_log->Log("remotePullSdp", evt_data);
+        }
         for (const auto& push_info : pull_info.pushers_) {
             auto user_it = users_.find(pusher_user_id);
             if (user_it == users_.end()) {
@@ -622,7 +687,15 @@ int Room::HandlePullSdp(const PullRequestInfo& pull_info,
     std::string answer_sdp_str;
     last_alive_ms_ = now_millisec();
     LogInfof(logger_, "HandlePullSdp called: %s", pull_info.Dump().c_str());
-
+    if (g_rtc_event_log) {
+        json evt_data;
+        json pull_info_json = json::object();
+        pull_info.Dump(pull_info_json);
+        evt_data["event"] = "pullSdp";
+        evt_data["room_id"] = room_id_;
+        evt_data["pull_info"] = pull_info_json;
+        g_rtc_event_log->Log("pullSdp", evt_data);
+    }
     auto pusher_user_it = users_.find(pull_info.target_user_id_);
     if (pusher_user_it == users_.end()) {
         LogErrorf(logger_, "Target pusher user not found in room, user_id:%s, room_id:%s",
@@ -768,6 +841,14 @@ int Room::SendPullRequestToPilotCenter(const std::string& pusher_user_id,
         pull_request_json["pushInfo"] = json::object();
         push_info.DumpJson(pull_request_json["pushInfo"]);
 
+        if (g_rtc_event_log) {
+            json evt_data;
+            evt_data["event"] = "pullRemoteStream";
+            evt_data["room_id"] = room_id_;
+            evt_data["pusher_user_id"] = pusher_user_id;
+            evt_data["pull_request"] = pull_request_json["pushInfo"];
+            g_rtc_event_log->Log("pullRemoteStream", evt_data);
+        }
         pilot_client_->AsyncNotification("pullRemoteStream", pull_request_json);
     } catch (const std::exception& e) {
         LogErrorf(logger_, "SendPullRequestToPilotCenter exception, pusher_user_id:%s, room_id:%s, error:%s",
@@ -969,6 +1050,14 @@ void Room::NewPusher2PilotCenter(const std::string& pusher_user_id, const std::v
             push_info.DumpJson(publisher_json);
             publishers_it->push_back(publisher_json);
         }
+        if (g_rtc_event_log) {
+            json evt_data;
+            evt_data["event"] = "newPusher2PilotCenter";
+            evt_data["room_id"] = room_id_;
+            evt_data["pusher_user_id"] = pusher_user_id;
+            evt_data["push_data"] = push_data["publishers"];
+            g_rtc_event_log->Log("newPusher2PilotCenter", evt_data);
+        }
         pilot_client_->AsyncNotification("push", push_data);
     } catch(const std::exception& e) {
         LogErrorf(logger_, "NewPusher2PilotCenter exception, room_id:%s, user_id:%s, error:%s",
@@ -987,6 +1076,14 @@ void Room::Join2PilotCenter(std::shared_ptr<RtcUser> user_ptr) {
         join_data["roomId"] = room_id_;
         join_data["userId"] = user_ptr->GetUserId();
         join_data["userName"] = user_ptr->GetUserName();
+        if (g_rtc_event_log) {
+            json evt_data;
+            evt_data["event"] = "join2PilotCenter";
+            evt_data["room_id"] = room_id_;
+            evt_data["user_id"] = user_ptr->GetUserId();
+            evt_data["user_name"] = user_ptr->GetUserName();
+            g_rtc_event_log->Log("join2PilotCenter", evt_data);
+        }
         (void)pilot_client_->AsyncRequest("join", join_data, this);
     } catch(const std::exception& e) {
         LogErrorf(logger_, "Join2PilotCenter exception, room_id:%s, user_id:%s, error:%s",
@@ -1006,6 +1103,13 @@ void Room::UserDisconnect2PilotCenter(const std::string& user_id) {
         leave_data["userId"] = user_id;
         LogInfof(logger_, "UserDisconnect2PilotCenter, room_id:%s, user_id:%s",
             room_id_.c_str(), user_id.c_str());
+        if (g_rtc_event_log) {
+            json evt_data;
+            evt_data["event"] = "userDisconnect2PilotCenter";
+            evt_data["room_id"] = room_id_;
+            evt_data["user_id"] = user_id;
+            g_rtc_event_log->Log("userDisconnect2PilotCenter", evt_data);
+        }
         pilot_client_->AsyncNotification("userDisconnect", leave_data);
     } catch(const std::exception& e) {
         LogErrorf(logger_, "UserDisconnect2PilotCenter exception, room_id:%s, user_id:%s, error:%s",
@@ -1025,6 +1129,14 @@ void Room::UserLeave2PilotCenter(const std::string& user_id) {
         leave_data["userId"] = user_id;
         LogInfof(logger_, "UserLeave2PilotCenter, room_id:%s, user_id:%s",
             room_id_.c_str(), user_id.c_str());
+
+        if (g_rtc_event_log) {
+            json evt_data;
+            evt_data["event"] = "userLeave2PilotCenter";
+            evt_data["room_id"] = room_id_;
+            evt_data["user_id"] = user_id;
+            g_rtc_event_log->Log("userLeave2PilotCenter", evt_data);
+        }
         pilot_client_->AsyncNotification("userLeave", leave_data);
     } catch(const std::exception& e) {
         LogErrorf(logger_, "UserLeave2PilotCenter exception, room_id:%s, user_id:%s, error:%s",
@@ -1115,6 +1227,14 @@ void Room::HandleNewUserNotificationFromCenter(json& data_json) {
                 room_id_.c_str(), user_id.c_str());
             return;
         }
+        if (g_rtc_event_log) {
+            json evt_data;
+            evt_data["event"] = "newUserFromCenter";
+            evt_data["room_id"] = room_id_;
+            evt_data["user_id"] = user_id;
+            evt_data["user_name"] = user_name;
+            g_rtc_event_log->Log("newUserFromCenter", evt_data);
+        }
         std::shared_ptr<RtcUser> new_user = std::make_shared<RtcUser>(room_id_, user_id, user_name, nullptr, logger_);
         new_user->SetRemote(true);
         users_[user_id] = new_user;
@@ -1186,6 +1306,15 @@ void Room::HandleNewPusherNotificationFromCenter(json& data_json) {
                 notify_user->GetRespCb()->Notification("newPusher", notify_json);
             }
         }
+        if (g_rtc_event_log) {
+            json evt_data;
+            evt_data["event"] = "newPusherFromCenter";
+            evt_data["room_id"] = room_id_;
+            evt_data["user_id"] = remote_user_id;
+            evt_data["user_name"] = remote_user_name;
+            evt_data["pushers"] = notify_json["pushers"];
+            g_rtc_event_log->Log("newPusherFromCenter", evt_data);
+        }
     } catch(const std::exception& e) {
         LogErrorf(logger_, "HandleNewPusherNotificationFromCenter exception, room_id:%s, error:%s",
             room_id_.c_str(), e.what());
@@ -1201,6 +1330,14 @@ void Room::HandlePullRemoteStreamNotificationFromCenter(json& data_json) {
 
         std::string pusher_user_id = data_json["pusher_user_id"].get<std::string>();
         auto push_info_json = data_json["pushInfo"];
+        if (g_rtc_event_log) {
+            json evt_data;
+            evt_data["event"] = "pullFromCenter";
+            evt_data["room_id"] = room_id_;
+            evt_data["pusher_user_id"] = pusher_user_id;
+            evt_data["pull_info"] = push_info_json;
+            g_rtc_event_log->Log("pullFromCenter", evt_data);
+        }
         PushInfo push_info;
         push_info.pusher_id_ = push_info_json["pusherId"].get<std::string>();
         auto rtp_param_it = push_info_json.find("rtpParam");
@@ -1249,7 +1386,13 @@ void Room::HandleUserDisconnectNotificationFromCenter(json& data_json) {
                 room_id_.c_str(), user_id.c_str());
             return;
         }
-
+        if (g_rtc_event_log) {
+            json evt_data;
+            evt_data["event"] = "userDisconnectFromCenter";
+            evt_data["room_id"] = room_id_;
+            evt_data["user_id"] = user_id;
+            g_rtc_event_log->Log("userDisconnectFromCenter", evt_data);
+        }
         //notify local users about user disconnect
         json notify_json = json::object();
         notify_json["userId"] = user_id;
@@ -1289,7 +1432,13 @@ void Room::HandleUserLeaveNotificationFromCenter(json& data_json) {
                 room_id_.c_str(), user_id.c_str());
             return;
         }
-
+        if (g_rtc_event_log) {
+            json evt_data;
+            evt_data["event"] = "userLeaveFromCenter";
+            evt_data["room_id"] = room_id_;
+            evt_data["user_id"] = user_id;
+            g_rtc_event_log->Log("userLeaveFromCenter", evt_data);
+        }
         //notify local users about user leave
         json notify_json = json::object();
         notify_json["userId"] = user_id;

@@ -25,6 +25,9 @@ public:
         uv_loop_t* loop, Logger* logger);
     virtual ~RtpSession();
 
+public:
+    const RtpSessionParam& GetRtpSessionParam() const { return param_; }
+    
 protected:
     void InitSeq(uint16_t seq);
     bool UpdateSeq(RtpPacket* rtp_pkt);

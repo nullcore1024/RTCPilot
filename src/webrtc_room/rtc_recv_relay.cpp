@@ -3,11 +3,15 @@
 #include "utils/uuid.hpp"
 #include "utils/timeex.hpp"
 #include "utils/byte_crypto.hpp"
+#include "utils/event_log.hpp"
+#include "utils/json.hpp"
 #include "config/config.hpp"
 #include "net/rtprtcp/rtp_packet.hpp"
 #include "net/rtprtcp/rtprtcp_pub.hpp"
 #include "net/rtprtcp/rtcp_sr.hpp"
 #include "net/rtprtcp/rtcp_pspli.hpp"
+
+extern std::unique_ptr<cpp_streamer::EventLog> g_rtc_stream_log;
 
 namespace cpp_streamer {
 
@@ -15,7 +19,8 @@ using json = nlohmann::json;
 
 RtcRecvRelay::RtcRecvRelay(const std::string& room_id, const std::string& pusher_user_id,
         PacketFromRtcPusherCallbackI* packet2room_cb,
-        uv_loop_t* loop, Logger* logger): logger_(logger) 
+        uv_loop_t* loop, Logger* logger): TimerInterface(500)
+                                        , logger_(logger)
 {
     loop_ = loop;
     room_id_ = room_id;
@@ -29,6 +34,8 @@ RtcRecvRelay::RtcRecvRelay(const std::string& room_id, const std::string& pusher
     udp_client_ptr_->TryRead();
 
     last_alive_ms_ = now_millisec();
+
+    StartTimer();
     LogInfof(logger_, "RtcRecvRelay construct, roomId:%s, pushUserId:%s, udpListenIp:%s, udpListenPort:%u", 
       room_id_.c_str(), pusher_user_id_.c_str(), listen_ip_.c_str(), udp_port_);
 }
@@ -37,6 +44,7 @@ RtcRecvRelay::~RtcRecvRelay() {
     udp_client_ptr_->Close();
     udp_client_ptr_.reset();
 
+    StopTimer();
     LogInfof(logger_, "RtcRecvRelay destruct, roomId:%s, pushUserId:%s", 
       room_id_.c_str(), pusher_user_id_.c_str());
 }
@@ -268,4 +276,52 @@ void RtcRecvRelay::RequestKeyFrame(uint32_t ssrc) {
         room_id_.c_str(), pusher_user_id_.c_str(), push_info.pusher_id_.c_str(), ssrc);
     OnTransportSendRtcp(pspli_pkt->GetData(), pspli_pkt->GetDataLen());
 }
+
+//implement TimerInterface
+bool RtcRecvRelay::OnTimer() {
+    int64_t now_ms = now_millisec();
+    if (last_statics_ms_ < 0) {
+        last_statics_ms_ = now_ms;
+        return true;
+    }
+    if (now_ms - last_statics_ms_ < 5000) {
+        return true;
+    }
+    last_statics_ms_ = now_ms;
+    
+    for (auto& it : ssrc2recv_session_) {
+        StreamStatics& stats = it.second->GetRecvStatics();
+        size_t pps = 0;
+        size_t bps = stats.BytesPerSecond(now_millisec(), pps);
+        size_t kbps = bps * 8 / 1000;
+        const auto rtp_params = it.second->GetRtpSessionParam();
+
+        LogDebugf(logger_, "++++>rtc recv relay RecvStatics, room_id:%s, pusher_user_id_:%s, \
+            ssrc:%u, av_type:%s, kbps:%zu, pps:%zu, total_bytes:%zu, total_pkts:%zu",
+            room_id_.c_str(), pusher_user_id_.c_str(),
+            it.first,
+            avtype_tostring(rtp_params.av_type_).c_str(),
+            kbps,
+            pps,
+            stats.GetBytes(),
+            stats.GetCount());
+
+        // log to event log
+        if (g_rtc_stream_log) {
+            json evt_data;
+            evt_data["event"] = "relay_recv";
+            evt_data["room_id"] = room_id_;
+            evt_data["pusher_user_id"] = pusher_user_id_;
+            evt_data["ssrc"] = it.first;
+            evt_data["media_type"] = avtype_tostring(rtp_params.av_type_);
+            evt_data["kbps"] = kbps;
+            evt_data["pps"] = pps;
+            evt_data["total_bytes"] = stats.GetBytes();
+            evt_data["total_pkts"] = stats.GetCount();
+            g_rtc_stream_log->Log("relay_recv", evt_data);
+        }
+    }
+    return true;
+}
+
 } // namespace cpp_streamer

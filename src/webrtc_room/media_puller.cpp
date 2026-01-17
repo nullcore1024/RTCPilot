@@ -1,5 +1,8 @@
 #include "media_puller.hpp"
 #include "utils/uuid.hpp"
+#include "utils/event_log.hpp"
+
+extern std::unique_ptr<cpp_streamer::EventLog> g_rtc_stream_log;
 
 namespace cpp_streamer {
 
@@ -100,7 +103,18 @@ ssrc:%u, media_type:%s, send_kbits:%zu, send_pps:%zu",
                 room_id_.c_str(), puller_user_id_.c_str(), pusher_user_id_.c_str(),
                 param_.ssrc_, avtype_tostring(param_.av_type_).c_str(),
                 kbits_per_sec, pps);
-
+            // event log
+            if (g_rtc_stream_log) {
+                json evt_data;
+                evt_data["room_id"] = room_id_;
+                evt_data["puller_user_id"] = puller_user_id_;
+                evt_data["pusher_user_id"] = pusher_user_id_;
+                evt_data["ssrc"] = param_.ssrc_;
+                evt_data["media_type"] = avtype_tostring(param_.av_type_);
+                evt_data["send_kbps"] = kbits_per_sec;
+                evt_data["send_pps"] = pps;
+                g_rtc_stream_log->Log("puller_send", evt_data);
+            }
             last_statics_ms_ = now_ms;
         }
     }

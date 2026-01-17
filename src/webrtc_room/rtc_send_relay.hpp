@@ -72,6 +72,9 @@ private:
 
 private:
     uint32_t send_discard_percent_ = 0;
+
+private:
+    int64_t last_statics_ms_ = 0;
 };
 
 }

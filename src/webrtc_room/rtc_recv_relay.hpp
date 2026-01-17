@@ -4,6 +4,7 @@
 #include "utils/timer.hpp"
 #include "utils/av/av.hpp"
 #include "utils/json.hpp"
+#include "utils/timer.hpp"
 #include "rtc_info.hpp"
 #include "net/udp/udp_client.hpp"
 #include "rtp_recv_session.hpp"
@@ -15,7 +16,7 @@
 namespace cpp_streamer {
 
 class PacketFromRtcPusherCallbackI;
-class RtcRecvRelay : public UdpSessionCallbackI, public TransportSendCallbackI
+class RtcRecvRelay : public UdpSessionCallbackI, public TransportSendCallbackI, public TimerInterface
 {
 public:
     RtcRecvRelay(const std::string& room_id, const std::string& pusher_user_id,
@@ -43,6 +44,9 @@ public://implement TransportSendCallbackI
 protected://implement UdpSessionCallbackI
     virtual void OnWrite(size_t sent_size, UdpTuple address) override;
     virtual void OnRead(const char* data, size_t data_size, UdpTuple address) override;
+
+protected://implement TimerInterface
+    virtual bool OnTimer() override;
 
 private:
     void HandleRtpPacket(const uint8_t* data, size_t data_size, UdpTuple address);
@@ -74,6 +78,9 @@ private:
 
 private:
     uint32_t recv_discard_percent_ = 0;
+
+private:
+    int64_t last_statics_ms_ = -1;
 };
 
 }
